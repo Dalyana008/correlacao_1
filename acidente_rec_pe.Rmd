@@ -1,0 +1,61 @@
+---
+title: "Acidentes_Recife_PE"
+author: "Dalyana Ribeiro"
+date: "2023-11-25"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    horizontal_layout: fill
+    theme: yeti
+---
+
+```{r setup, include=FALSE}
+pacman::p_load(
+  ## ETL
+  data.table, dplyr,readxl,
+  ## WIDGETS
+  DT
+  )
+
+
+acidente_Recife_2022 <- read_excel("C:/Users/daly_/OneDrive/Estatísticas doutorado/acidente_Recife_2022.xlsx")
+
+```
+
+## tabela
+Acidentes Recife
+======================================
+```{r}
+acidente_Recife_2022 %>% datatable(
+  # Título
+  caption = htmltools::tags$caption(
+    # estilo do título usando css
+    style = 'text-align: center; font-size: 18px; font-weight: bold;',
+    'Tabela 1: Base de Dados Acidentes'),
+  # nomes das colunas
+  colnames = c('ordem','protocolo', 'data', 'hora', 'natureza','situacao', 'bairro', 'endereco', 'numero', 'detalhe do  endereco', 'complemento'),
+  filter = "top",
+  # extensões para serem acrescentadas
+  extensions = c('Buttons', 'ColReorder', 'Responsive'),
+  # as opções configuram efetivamente as extensões
+  options = list(
+    #
+    dom = 'Blfrtip',
+    # primeiro vamos configurar os botões, adicionando funcionalidades
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    # permite ao usuário reordenar as colunas
+    colReorder = TRUE,
+    # controla quantas linhas serão mostradas por página
+    pageLength = 50, 
+    # ativa o spinner (indicador de processamento)
+    processing = TRUE
+  )
+) %>% # podemos usar também formatações de estilo avançadas para as colunas
+  formatStyle(
+    'velocidade_max_via',
+    color = styleInterval(40, c('black', 'white')),
+    background = styleColorBar(acidente_Recife_2022$velocidade_max_via, 'lightblue')
+  )
+```
+
+
