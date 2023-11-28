@@ -1,0 +1,50 @@
+---
+title: "Acidente de Trânsito em Recife - 2022"
+output: html_document
+
+```{r setup, include=FALSE}
+pacman::p_load(crosstalk, dplyr, DT, plotly,readxl)
+  
+# Substitua "acidentes_Recife_2022" pelo nome real do seu DataFrame
+acidentes_df <- read_excel("C:/Users/daly_/OneDrive/Estatísticas doutorado/acidente_Recife_2022.xlsx") %>%
+  dplyr::mutate(
+    stations = as.factor(velocidade_max_via)  # Substitua "velocidade_max_via" pelo nome real da coluna
+  )
+
+sd <- SharedData$new(acidentes_df)
+
+```
+
+
+```{r, warning=FALSE, out.width='100%', echo = FALSE, message = FALSE}
+
+filter_checkbox("situacao_semaforo", "Situação do Semáforo", sd, ~situacao_semaforo, inline = TRUE)
+filter_slider("velocidade", "Velocidade Máx. Via", sd, column=~velocidade_max_via, step=0.1, width=250)
+filter_checkbox("sinalizacao", "Sinalização", sd, ~sinalizacao, inline = TRUE)
+filter_checkbox("natureza", "natureza", sd, ~natureza, inline = TRUE)
+filter_checkbox("acidente_verificado", "acidente_verificado", sd, ~acidente_verificado, inline = TRUE)
+
+
+# Gráfico de Cluster
+grafico_cluster <- sd %>% plot_ly(
+  x = ~situacao_semaforo,
+  y = ~vitimas,
+  type = "scatter",
+  mode = "markers",
+  marker = list(color = ~sinalizacao),
+  text = ~paste("Situação do Semáforo: ", situacao_semaforo, "<br>Vítimas: ", vitimas)
+) 
+
+# Exibindo o gráfico
+grafico_cluster %>%
+  layout(
+    xaxis = list(title = "Situação do Semáforo"),
+    yaxis = list(title = "Número de Vítimas"),
+    showlegend = FALSE
+  ) %>%
+  highlight(on = "plotly_selected", off = "plotly_deselect", color = 'red')
+```
+
+
+
+
