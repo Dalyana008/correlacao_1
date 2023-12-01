@@ -1,0 +1,62 @@
+---
+title: "Acidentes de Trânsito Recife 2022"
+date: "2023-11-28"
+output: html_document
+---
+
+
+
+```{r setup, include=FALSE}
+pacman::p_load(crosstalk,shiny, leaflet, DT, plotly,readxl, ggplot2)
+
+acidente_Recife_2022 <-read_excel("C:/Users/daly_/Dropbox/R/bases_tratadas/acidente_Recife_2022.xlsx")
+
+sd_acidente <- SharedData$new(acidente_Recife_2022)
+
+```
+
+
+
+
+
+```{r, warning=FALSE, out.width='100%', echo = FALSE, message = FALSE}
+
+filter_slider("velocidade", "Velocidade Máxima Via", sd_acidente, column=~velocidade_max_via, step=1, width=250)
+
+filter_checkbox("sinalizacao", "Sinalização", sd_acidente, ~sinalizacao, inline = TRUE)
+
+filter_checkbox("situacao_semaforo", "situação_semaforo", sd_acidente, ~situacao_semaforo, inline = TRUE)
+
+filter_checkbox("tipo", "tipo", sd_acidente, ~tipo, inline = TRUE)
+
+filter_checkbox("conservacao_via", "Conservação", sd_acidente, ~conservacao_via, inline = TRUE)
+
+filter_checkbox("natureza", "Natureza", sd_acidente, ~natureza, inline = TRUE)
+
+
+# Crie o gráfico de dispersão interativo
+sd_acidente %>% plot_ly(x = ~velocidade_max_via, y = ~vitimas, color = ~situacao) 
+
+# Crie um gráfico de barras agrupadas
+plot_ly(sd_acidente, x = ~velocidade_max_via, color = ~as.factor(condicao_via), type = "bar") %>%
+  layout(title = "Distribuição de Acidentes por Tipo e Número de Vítimas",
+         xaxis = list(title = "velocidade_max_via"),
+         yaxis = list(title = "moto"),
+         barmode = "stack")
+
+# Instale os pacotes necessários, se ainda não estiverem instalados
+# install.packages(c("leaflet", "dplyr"))
+
+# Carregar bibliotecas
+library(plotly)
+library(dplyr)
+
+
+
+# Crie uma tabela interativa
+sd_acidente %>% datatable(
+  filter = list(
+    position = 'bottom', clear = FALSE, plain = TRUE)
+  )
+
+```
