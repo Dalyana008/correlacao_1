@@ -1,0 +1,163 @@
+---
+title: "Acidentes de trânsito em Recife 2022"
+date: "2023-12-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+# carregar as bibliotecas
+pacman::p_load(cluster, ggplot2, plotly, readxl,caret)
+#carregando a porra dos dados
+acidente_Recife_2022 <- read_excel("C:/Users/daly_/Dropbox/R/acidente_Recife_2022.xlsx")
+View(acidente_Recife_2022)
+# Remover linhas com valores ausentes
+acidente_Recife_2022 <- acidente_Recife_2022[complete.cases(acidente_Recife_2022[, c("vitimas", "velocidade_max_via")]), ]
+
+# Realizar o agrupamento com k-means
+num_clusters <- 3
+cls <- kmeans(acidente_Recife_2022[, c("vitimas", "velocidade_max_via")], centers = num_clusters)
+acidente_Recife_2022$cluster <- as.factor(cls$cluster)
+
+# Visualizar os primeiros registros com informações de cluster
+head(acidente_Recife_2022)
+
+
+```
+##AGRUPAMENTO E VISUALIZAÇÃO DOS CLUSTERS
+
+
+
+```{r acidenteRecife_cluster, echo=FALSE, warning=FALSE, message=FALSE}
+# Plotly - Gráfico Interativo
+grafico_interativo <- ggplot(acidente_Recife_2022, aes(x = velocidade_max_via, y = vitimas, color = cluster)) +
+  geom_point(size = 3) +
+  geom_point(data = as.data.frame(cls$centers), aes(x = velocidade_max_via, y =vitimas), color = "red", size = 4) +
+  geom_text(data = as.data.frame(cls$centers), aes(x = velocidade_max_via, y = vitimas, label = 1:num_clusters), color = "white", size = 4) +
+  theme_light() +
+  labs(title = "Agrupamento de Acidentes", x = "Velocidade máxima da via", y = "Vitimas")
+
+ggplotly(grafico_interativo)
+
+
+```
+
+# Treinar um modelo de regressão para calcular a importância das variáveis
+
+```{r acidentes_Recife_cluster, echo=FALSE, warning=FALSE, message=FALSE}
+
+# Remover linhas com valores ausentes nas variáveis de interesse
+variaveis_interesse <- c("condicao_via", "sinalizacao", "moto", "auto", "pedestre", "tipo", "vitimas", "vitimasfatais", "velocidade_max_via")
+
+acidente_Recife_2022_sub <- acidente_Recife_2022[complete.cases(acidente_Recife_2022[, variaveis_interesse]), ]
+
+# Verificar se há valores ausentes
+if (any(is.na(acidente_Recife_2022_sub))) {
+  warning("Existem valores ausentes nos dados após a remoção.")
+}
+
+# Selecionar apenas as variáveis de interesse
+dados_modelo <- acidente_Recife_2022_sub[, variaveis_interesse]
+
+# Adicionar a variável resposta 'cluster'
+dados_modelo$cluster <- acidente_Recife_2022_sub$cluster
+
+# Treinar um modelo de regressão para calcular a importância das variáveis
+modelo_sub <- train(cluster ~ ., data = dados_modelo, method = "rpart")
+importancia_sub <- varImp(modelo_sub)
+
+# Visualizar a importância das variáveis
+plot(importancia_sub)
+
+
+```
+
+#Arvore de decisão
+
+``` {R acidente_cluster, echo=FALSE, warning=FALSE, message=FALSE}
+library(rpart)
+# Treinar uma árvore de decisão
+arvore <- rpart(cluster ~ ., data = acidente_Recife_2022)
+
+# Visualizar a árvore de decisão
+rpart.plot(arvore)
+
+```
+# Criar transações para regras de associação
+
+
+
+```{r acidentecluster, echo=FALSE, warning=FALSE, message=FALSE}
+
+
+transacoes <- as(acidente_Recife_2022[, c("vitimas", "velocidade_max_via", "cluster")], "transactions")
+
+# Gerar regras de associação
+regras <- apriori(transacoes, parameter = list(supp = 0.1, conf = 0.7))
+
+# Visualizar as regras de associação
+plot(regras, method = "graph")
+```
+##Seletor de variaveis e gráficos 
+
+
+```{r acidentecluster_2022, echo=FALSE, warning=FALSE, message=FALSE}
+
+# Instale e carregue os pacotes necessários
+if (!requireNamespace("shiny", quietly = TRUE)) install.packages("shiny")
+if (!requireNamespace("plotly", quietly = TRUE)) install.packages("plotly")
+if (!requireNamespace("ggplot2", quietly = TRUE)) install.packages("ggplot2")
+
+library(shiny)
+library(plotly)
+library(ggplot2)
+library(crosstalk)
+# filtros 
+
+
+filter_slider("velocidade", "Velocidade Máxima Via", sd_acidente, column=~velocidade_max_via, step=1, width=250)
+
+filter_checkbox("sinalizacao", "Sinalização", sd_acidente, ~sinalizacao, inline = TRUE)
+
+filter_checkbox("situacao_semaforo", "situação_semaforo", sd_acidente, ~situacao_semaforo, inline = TRUE)
+
+# Defina UI
+ui <- fluidPage(
+  titlePanel("Análise de Acidentes em Recife"),
+
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("var_selector", "Escolha a variável:", choices = colnames(acidente_Recife_2022), selected = "vitimas")
+    ),
+    mainPanel(
+      plotOutput("scatter_plot"),
+      plotlyOutput("bar_chart")
+    )
+  )
+)
+
+# Defina server
+server <- function(input, output) {
+  
+  # Gráfico de Dispersão Interativo
+  output$scatter_plot <- renderPlot({
+    ggplot(acidente_Recife_2022, aes(x = .data[[input$var_selector]], y = vitimas, color = velocidade_max_via)) +
+      geom_point() +
+      labs(title = "Gráfico de Dispersão Interativo", x = input$var_selector, y = "Número de Vítimas")
+  })
+
+  # Gráfico de Barras Interativo
+  output$bar_chart <- renderPlotly({
+    ggplot(acidente_Recife_2022, aes_string(x = input$var_selector, fill = input$var_selector)) +
+      geom_bar() +
+      labs(title = "Gráfico de Barras Interativo", x = input$var_selector, y = "Contagem") +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  })
+}
+
+# Execute o aplicativo Shiny
+shinyApp(ui, server)
+
+```
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
